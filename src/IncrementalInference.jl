@@ -85,6 +85,7 @@ export
   manualinit!,
   resetData!,
   getFactor,
+  hasFactor,
   getVariable,
   getVert,
   getData,
@@ -108,8 +109,10 @@ export
   ExploreTreeType,
   FactorGraph,
   initfg,
+  buildSubgraphFromLabels,
   subgraphShortestPath,
   subgraphFromVerts,
+  subGraphFromVerts,
   getEliminationOrder,
   buildBayesNet!,
   emptyBayesTree,
@@ -252,6 +255,14 @@ export
   compareField,
   compareFields,
   compareAll,
+  compareAllSpecial,
+  compareVariable,
+  compareFactor,
+  compareAllVariables,
+  compareSimilarVariables,
+  compareSubsetFactorGraph,
+  compareSimilarFactors,
+  compareFactorGraphs,
   getIdx,
   showFactor,
 
@@ -282,6 +293,7 @@ include("AliasScalarSampling.jl")
 include("DefaultNodeTypes.jl")
 include("DataLayerAPI.jl")
 include("FactorGraph01.jl")
+include("SubGraphFunctions.jl")
 include("SerializingDistributions.jl")
 include("DispatchPackedConversions.jl")
 include("FGOSUtils.jl")
