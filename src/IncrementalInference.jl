@@ -49,6 +49,7 @@ export
   # state machine methods
   StateMachine,
   exitStateMachine,
+  getCliqSolveHistory,
 
   # general types for softtyping of variable nodes
   InferenceVariable,
@@ -94,6 +95,8 @@ export
   resetData!,
   resetTreeCliquesForUpSolve!,
   getFactor,
+  getFactorDim,
+  getVariableDim,
   hasFactor,
   getVariable,
   getVert,
@@ -144,7 +147,7 @@ export
   getCliqStatus,
   setCliqStatus!,
   getMaxVertId,
-  prepCliqInitMsgsUp!,
+  prepCliqInitMsgsUp,
   prepCliqInitMsgsDown!,
   updateFullVert!,
   getOutNeighbors,
@@ -176,6 +179,7 @@ export
   getKDE,
   getVertKDE,
   initializeNode!,
+  CliqStateMachineContainer,
   batchSolve!,
   fifoFreeze!,
   getCurrentWorkspaceFactors,
