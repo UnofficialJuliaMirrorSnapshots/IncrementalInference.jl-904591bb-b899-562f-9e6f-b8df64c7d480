@@ -22,6 +22,7 @@ using
   FileIO,
   ProgressMeter,
   DocStringExtensions,
+  FunctionalStateMachine,
   Optim # might be deprecated in favor for only NLsolve dependency
 
 
@@ -51,6 +52,8 @@ export
   StateMachine,
   exitStateMachine,
   getCliqSolveHistory,
+  filterHistAllToArray,
+  cliqHistFilterTransitions,
   printCliqHistorySummary,
   sandboxStateMachineStep,
   sandboxCliqResolveStep,
@@ -104,6 +107,7 @@ export
   doautoinit!,
   manualinit!,
   initInferTreeUp!,
+  solveCliqWithStateMachine!,
   resetData!,
   resetTreeCliquesForUpSolve!,
   getFactor,
@@ -162,6 +166,7 @@ export
   getCliqInitUpMsgs,
   getCliqStatus,
   setCliqStatus!,
+  getSolveCondition,
   getMaxVertId,
   prepCliqInitMsgsUp,
   prepCliqInitMsgsDown!,
@@ -170,6 +175,7 @@ export
   BayesTree,
   EasyMessage,
   NBPMessage,
+  FullExploreTreeType,
   ExploreTreeType,
   FactorGraph,
   initfg,
@@ -187,6 +193,7 @@ export
   prepBatchTree!,
   wipeBuildNewTree!,
   whichCliq,
+  getTreeAllFrontalSyms,
   getCliqChildMsgsUp,
   getCliqParentMsgDown,
   isReadyCliqInferenceUp,
@@ -236,6 +243,7 @@ export
   treeProductUp,
   approxCliqMarginalUp!,
   unmarginalizeVariablesAll!,
+  unfreezeVariablesAll!,
   resetVariableAllInitializations!,
   isMarginalized,
   isCliqMarginalizedFromVars,
@@ -390,8 +398,6 @@ const NothingUnion{T} = Union{Nothing, T}
 include("ccolamd.jl")
 
 # regular
-include("StateMachine.jl")
-include("StateMachineAnimation.jl")
 include("FactorGraphTypes.jl")
 include("AliasScalarSampling.jl")
 include("DefaultNodeTypes.jl")
@@ -411,6 +417,7 @@ include("ExplicitDiscreteMarginalizations.jl")
 include("ApproxConv.jl")
 include("SolveTree01.jl")
 include("CliqStateMachine.jl")
+include("CliqStateMachineUtils.jl")
 include("AdditionalUtils.jl")
 
 

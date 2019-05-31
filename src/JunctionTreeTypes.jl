@@ -81,11 +81,12 @@ mutable struct BayesTreeNodeData
   downsolved::Bool
   initUpChannel::Channel{Symbol}
   initDownChannel::Channel{Symbol}
+  solveCondition::Condition
   statehistory::Vector{Tuple{DateTime, Int, Function, CliqStateMachineContainer}}
   BayesTreeNodeData() = new()
   BayesTreeNodeData(x...) = new(x[1],x[2],x[3],x[4],x[5],x[6],x[7],x[8],x[9],x[10],
                                 x[11],x[12],x[13],x[14],x[15],x[16],x[17],x[18],x[19],x[20],
-                                x[21], x[22], x[23], x[24], x[25],
+                                x[21], x[22], x[23], x[24], x[25], x[26],
                                 Vector{Tuple{DateTime, Int, Function, CliqStateMachineContainer}}() )
 end
 
@@ -104,7 +105,7 @@ function emptyBTNodeData()
                     Dict{Symbol, BallTreeDensity}(),
                     false, :null,
                     false, false,
-                    Channel{Symbol}(1), Channel{Symbol}(1)  )
+                    Channel{Symbol}(1), Channel{Symbol}(1), Condition()  )
 end
 
 
@@ -151,11 +152,13 @@ end
 $(TYPEDEF)
 """
 mutable struct UpReturnBPType
-    upMsgs::NBPMessage
-    dbgUp::DebugCliqMCMC
-    IDvals::Dict{Int, EasyMessage} #Array{Float64,2}
-    keepupmsgs::Dict{Symbol, BallTreeDensity} # TODO Why separate upMsgs?
-    totalsolve::Bool
+  upMsgs::NBPMessage
+  dbgUp::DebugCliqMCMC
+  IDvals::Dict{Int, EasyMessage} #Array{Float64,2}
+  keepupmsgs::Dict{Symbol, BallTreeDensity} # TODO Why separate upMsgs?
+  totalsolve::Bool
+  UpReturnBPType() = new()
+  UpReturnBPType(x1,x2,x3,x4,x5) = new(x1,x2,x3,x4,x5)
 end
 
 """
@@ -171,13 +174,17 @@ end
 """
 $(TYPEDEF)
 """
-mutable struct ExploreTreeType{T}
+mutable struct FullExploreTreeType{T, T2}
   fg::FactorGraph
-  bt::BayesTree
+  bt::T2
   cliq::Graphs.ExVertex
   prnt::T
-  sendmsgs::Array{NBPMessage,1}
+  sendmsgs::Vector{NBPMessage}
 end
+
+const ExploreTreeType{T} = FullExploreTreeType{T, BayesTree}
+const ExploreTreeTypeLight{T} = FullExploreTreeType{T, Nothing}
+
 
 function ExploreTreeType(fgl::FactorGraph,
                 btl::BayesTree,
