@@ -118,20 +118,24 @@ end
 
 Compare that all fields are the same in a `::FactorGraph` variable.
 """
-function compareVariable(A::Graphs.ExVertex,
-                         B::Graphs.ExVertex;
+function compareVariable(A::DFGVariable,
+                         B::DFGVariable;
                          show::Bool=true,
                          skipsamples::Bool=true  )::Bool
+  #
+  TP = compareAll(A, B, skip=[:attributes;:solverDataDict;:_internalId], show=show)
+  TP = TP && compareAll(A.solverDataDict, B.solverDataDict, show=show)
+
   Ad = getData(A)
   Bd = getData(B)
 
-  TP = compareAll(A, B, skip=[:attributes;], show=show)
-  TP = TP && compareAll(A.attributes, B.attributes, skip=[:softtype;], show=show)
+  # TP = TP && compareAll(A.attributes, B.attributes, skip=[:softtype;], show=show)
   varskiplist = skipsamples ? [:val; :bw] : Symbol[]
-  varskiplist = union(varskiplist, [:softtype;])
+  varskiplist = union(varskiplist, [:softtype;:_internalId])
   TP = TP && compareAll(Ad, Bd, skip=varskiplist, show=show)
   TP = TP && typeof(Ad.softtype) == typeof(Bd.softtype)
   TP = TP && compareAll(Ad.softtype, Bd.softtype, show=show)
+  return TP
 end
 
 function compareAllSpecial(A::T1,
@@ -160,15 +164,15 @@ end
 
 Compare that all fields are the same in a `::FactorGraph` factor.
 """
-function compareFactor(A::Graphs.ExVertex,
-                       B::Graphs.ExVertex;
+function compareFactor(A::DFGFactor,
+                       B::DFGFactor;
                        show::Bool=true,
                        skipsamples::Bool=true,
                        skipcompute::Bool=true  )
   #
-  TP =  compareAll(A, B, skip=[:attributes;:data], show=show)
-  TP = TP & compareAll(A.attributes, B.attributes, skip=[:data;], show=show)
-  TP = TP & compareAllSpecial(getData(A), getData(B), skip=[:fnc;], show=show)
+  TP =  compareAll(A, B, skip=[:attributes;:data;:_variableOrderSymbols;:_internalId], show=show)
+  # TP = TP & compareAll(A.attributes, B.attributes, skip=[:data;], show=show)
+  TP = TP & compareAllSpecial(getData(A), getData(B), skip=[:fnc;:_internalId], show=show)
   TP = TP & compareAllSpecial(getData(A).fnc, getData(B).fnc, skip=[:cpt;:measurement;:params;:varidx], show=show)
   TP = TP & (skipsamples || compareAll(getData(A).fnc.measurement, getData(B).fnc.measurement, show=show))
   TP = TP & (skipcompute || compareAll(getData(A).fnc.params, getData(B).fnc.params, show=show))
@@ -196,14 +200,13 @@ Related:
 
 `compareFactorGraphs`, `compareSimilarVariables`, `compareVariable`, `ls`
 """
-function compareAllVariables(fgA::FactorGraph,
-                             fgB::FactorGraph;
+function compareAllVariables(fgA::G1,
+                             fgB::G2;
                              show::Bool=true,
-                             api::DataLayerAPI=localapi,
-                             skipsamples::Bool=true )::Bool
+                             skipsamples::Bool=true )::Bool where {G1 <: AbstractDFG, G2 <: AbstractDFG}
   # get all the variables in A or B
-  xlA = union(ls(fgA)...)
-  xlB = union(ls(fgB)...)
+  xlA =  getVariableIds(fgA)
+  xlB =  getVariableIds(fgB)
   vars = union(xlA, xlB)
 
   # compare all variables exist in both A and B
@@ -218,7 +221,7 @@ function compareAllVariables(fgA::FactorGraph,
 
   # compare each variable is the same in both A and B
   for var in vars
-    TP = TP && compareVariable(getVert(fgA, var, api=api), getVert(fgB, var, api=api), skipsamples=skipsamples)
+    TP = TP && compareVariable(DFG.getVariable(fgA, var), DFG.getVariable(fgB, var), skipsamples=skipsamples)
   end
 
   # return comparison result
@@ -237,14 +240,13 @@ Related:
 
 `compareFactorGraphs`, `compareAllVariables`, `compareSimilarFactors`, `compareVariable`, `ls`.
 """
-function compareSimilarVariables(fgA::FactorGraph,
-                                 fgB::FactorGraph;
+function compareSimilarVariables(fgA::G1,
+                                 fgB::G2;
                                  show::Bool=true,
-                                 api::DataLayerAPI=localapi,
-                                 skipsamples::Bool=true )::Bool
+                                 skipsamples::Bool=true )::Bool where {G1 <: AbstractDFG, G2 <: AbstractDFG}
   #
-  xlA = union(ls(fgA)...)
-  xlB = union(ls(fgB)...)
+  xlA = getVariableIds(fgA)
+  xlB = getVariableIds(fgB)
 
   # find common variables
   xlAB = intersect(xlA, xlB)
@@ -252,7 +254,7 @@ function compareSimilarVariables(fgA::FactorGraph,
 
   # compare the common set
   for var in xlAB
-    TP = TP && compareVariable(getVert(fgA, var, api=api), getVert(fgB, var, api=api), skipsamples=skipsamples)
+    TP = TP && compareVariable(DFG.getVariable(fgA, var), DFG.getVariable(fgB, var), skipsamples=skipsamples)
   end
 
   # return comparison result
@@ -285,15 +287,14 @@ Related:
 
 `compareFactorGraphs`, `compareSimilarVariables`, `compareAllVariables`, `ls`.
 """
-function compareSimilarFactors(fgA::FactorGraph,
-                               fgB::FactorGraph;
-                               api::DataLayerAPI=localapi,
+function compareSimilarFactors(fgA::G1,
+                               fgB::G2;
                                skipsamples::Bool=true,
                                skipcompute::Bool=true,
-                               show::Bool=true  )
+                               show::Bool=true  )::Bool where {G1 <: AbstractDFG, G2 <: AbstractDFG}
   #
-  xlA = lsf(fgA)
-  xlB = lsf(fgB)
+  xlA = getFactorIds(fgA)
+  xlB = getFactorIds(fgB)
 
   # find common variables
   xlAB = intersect(xlA, xlB)
@@ -301,7 +302,7 @@ function compareSimilarFactors(fgA::FactorGraph,
 
   # compare the common set
   for var in xlAB
-    TP = TP && compareFactor(getVert(fgA, var, nt=:fct, api=api), getVert(fgB, var, nt=:fct, api=api), skipsamples=skipsamples, skipcompute=skipcompute, show=show)
+    TP = TP && compareFactor(DFG.getFactor(fgA, var), getFactor(fgB, var), skipsamples=skipsamples, skipcompute=skipcompute, show=show)
   end
 
   # return comparison result
@@ -321,20 +322,21 @@ Related:
 
 `compareSimilarVariables`, `compareSimilarFactors`, `compareAllVariables`, `ls`.
 """
-function compareFactorGraphs(fgA::FactorGraph,
-                             fgB::FactorGraph;
-                             api::DataLayerAPI=localapi,
+function compareFactorGraphs(fgA::G1,
+                             fgB::G2;
                              skipsamples::Bool=true,
                              skipcompute::Bool=true,
                              skip::Vector{Symbol}=Symbol[],
-                             show::Bool=true  )
+                             show::Bool=true  )::Bool where {G1 <: AbstractDFG, G2 <: AbstractDFG}
   #
-  skiplist = Symbol[:g;:bn;:IDs;:fIDs;:id;:nodeIDs;:factorIDs;:fifo]
+  skiplist = Symbol[:g;:bn;:IDs;:fIDs;:id;:nodeIDs;:factorIDs;:fifo; :solverParams]
   skiplist = union(skiplist, skip)
 
   TP = compareAll(fgA, fgB, skip=skiplist, show=show)
-  TP = TP && compareSimilarVariables(fgA, fgB, api=api, skipsamples=skipsamples, show=show )
-  TP = TP && compareSimilarFactors(fgA, fgB, api=api, skipsamples=skipsamples, skipcompute=skipcompute, show=show )
+  TP = TP && compareSimilarVariables(fgA, fgB, skipsamples=skipsamples, show=show )
+  TP = TP && compareSimilarFactors(fgA, fgB, skipsamples=skipsamples, skipcompute=skipcompute, show=show )
+  TP = TP && compareAll(fgA.solverParams, fgB.solverParams)
+
   return TP
 end
 
@@ -348,15 +350,10 @@ saved and recovered by the associated loadjld(file="tempfg.jld2") method.
 Notes:
 - Must use `.jld2` since Julia 1.0 (previous version was deprecated).
 """
-function savejld(fgl::FactorGraph;
-      file::AbstractString="tempfg.jld2",
-      groundtruth=nothing)
+function savejld(fgl::G;
+                 file::AbstractString="tempfg.jld2"  ) where G <: AbstractDFG
   fgs = encodefg(fgl)
-  if groundtruth == nothing
-    @save file fgs
-  else
-    @save file fgs groundtruth
-  end
+  @save file fgs
   return file
 end
 
@@ -402,180 +399,6 @@ function sortnestedperm(strs::Vector{<:AbstractString}; delim='_')
   sp1 = sortperm(parse.(Int,getindex.(str12,2)))
   sp2 = sortperm(parse.(Int,getindex.(str12,1)[sp1]))
   return sp1[sp2]
-end
-
-
-"""
-    $(SIGNATURES)
-
-Return all elements `ls(fg)` as tuples, or nodes connected to the a specific element, eg. `ls(fg, :x1)
-"""
-function ls(fgl::FactorGraph, lbl::Symbol; api::DataLayerAPI=dlapi, ring::Int=1)
-  # TODO ring functionality must still be implemented
-  lsa = Symbol[]
-  # v = nothing
-  if haskey(fgl.IDs, lbl)
-    id = fgl.IDs[lbl]
-  else
-    return lsa
-  end
-  # this is unnecessary
-  v = getVert(fgl,id, api=api)
-  for outn in api.outneighbors(fgl, v)
-    # if outn.attributes["ready"] = 1 && outn.attributes["backendset"]=1
-      push!(lsa, Symbol(outn.label))
-    # end
-  end
-  return lsa
-end
-ls(fgl::FactorGraph, lbl::T) where {T <: AbstractString} = ls(fgl, Symbol(lbl))
-
-"""
-    $(SIGNATURES)
-
-Experimental union of elements version of ls(::FactorGraph, ::Symbol).  Not mean't to replace broadcasting `ls.(fg, [:x1;:x2])`
-"""
-function ls(fgl::FactorGraph,
-            lbls::Vector{Symbol};
-            api::DataLayerAPI=dlapi,
-            ring::Int=1)
-  union(ls.(fgl, lbls, ring=ring, api=api)[:]...)
-end
-
-"""
-    $(SIGNATURES)
-
-List the nodes in a factor graph.
-
-# Examples
-```julia-repl
-ls(fg)
-```
-"""
-function ls(fgl::FactorGraph; key1='x', key2='l')
-  k = collect(keys(fgl.IDs))
-  x, l = String[], String[]
-  xval, lval = Int[], Int[]
-  xstr, lstr = String[], String[]
-  xvalnested, lvalnested = String[], String[]
-  xstrnested, lstrnested = String[], String[]
-  canparse1, canparse2 = true,true
-  nestedparse1, nestedparse2 = true, true
-  idx = 0
-  for id in k
-    idx += 1
-    idstr = string(id)
-    # val = parse(Int,kstr[2:end]) # TODO: handle non-int labels
-    node_idx = idstr[2:end]
-    canparse = allnums(node_idx)
-    nested = isnestednum(node_idx)
-    if idstr[1] == key1
-      keystr = string(key1,node_idx)
-      if canparse
-        push!(xstr, keystr)
-        push!(xval, parse(Int, node_idx))
-      elseif nested
-        push!(xvalnested, node_idx)
-        push!(xstrnested, string(node_idx))
-      else
-        push!(x,keystr)
-      end
-    elseif idstr[1] == key2
-      keystr = string(key2,node_idx)
-      if canparse
-        push!(lstr, keystr)
-        push!(lval, parse(Int, node_idx))
-      elseif nested
-        push!(lstrnested, keystr)
-        push!(lvalnested, string(node_idx))
-      else
-        push!(l,string(key2,node_idx))
-      end
-    end
-  end
-  x1 = xstr[sortperm(xval)]
-  x2 = xstrnested[sortnestedperm(xvalnested)]
-  x = [x1; x2; sort(x)]
-
-  l1 = lstr[sortperm(lval)]
-  l2 = lstrnested[sortnestedperm(lvalnested)]
-  l = [l1; l2; sort(l)]
-
-  xx = Symbol.(x)
-  ll = Symbol.(l)
-  return xx, ll #return poses, landmarks
-end
-
-lsf(fgl::FactorGraph) = collect(keys(fgl.fIDs))
-
-"""
-    $(SIGNATURES)
-
-List factors in a factor graph.
-
-# Examples
-```julia-repl
-lsf(fg, :x1)
-```
-"""
-function lsf(fgl::FactorGraph, lbl::Symbol; api::DataLayerAPI=dlapi)
-  lsa = Symbol[]
-  if haskey(fgl.fIDs, lbl)
-    id = fgl.fIDs[lbl]
-  else
-    return lsa
-  end
-  v = getVert(fgl, id, api=api) # fgl.g.vertices[id] #fgl.f[id]
-  for outn in api.outneighbors(fgl, v) # out_neighbors(v, fgl.g)
-    push!(lsa, Symbol(outn.label))
-  end
-  return lsa
-end
-
-
-"""
-    $(SIGNATURES)
-
-List factors in a factor graph.
-
-# Examples
-```julia-repl
-lsf(fg)
-```
-"""
-lsf(fgl::FactorGraph, lbl::T) where {T <: AbstractString} = lsf(fgl,Symbol(lbl))
-
-function lsf(fgl::FactorGraph,
-             mt::Type{T};
-             api::DataLayerAPI=dlapi  ) where {T <: FunctorInferenceType}
-  #
-  syms = Symbol[]
-  for (fsym,fid) in fgl.fIDs
-    if typeof(getfnctype(fgl, fid, api=api))==T
-      push!(syms, fsym)
-    end
-  end
-  return syms
-end
-
-function lsf(fgl::FactorGraph)
-  collect(keys(fgl.fIDs))
-end
-
-"""
-    $SIGNATURES
-
-List vertices two neighbors deep.
-"""
-function ls2(fgl::FactorGraph, vsym::Symbol)
-  xxf = ls(fgl, vsym)
-  xlxl = Symbol[]
-  for xf in xxf
-    xx = lsf(fgl,xf)
-    xlxl = union(xlxl, xx)
-  end
-  xlxl = setdiff(xlxl, [vsym])
-  return xlxl
 end
 
 
@@ -709,45 +532,45 @@ end
 
 Return whether `sym::Symbol` represents a variable vertex in the graph.
 """
-isVariable(fgl::FactorGraph, sym::Symbol) = haskey(fgl.IDs, sym)
+isVariable(dfg::G, sym::Symbol) where G <: AbstractDFG = haskey(dfg.labelDict, sym)
 
 """
     $SIGNATURES
 
 Return whether `sym::Symbol` represents a factor vertex in the graph.
 """
-isFactor(fgl::FactorGraph, sym::Symbol) = haskey(fgl.fIDs, sym)
+isFactor(dfg::G, sym::Symbol) where G <: AbstractDFG = hasFactor(dfg, sym)
 
 
-"""
-    $SIGNATURES
+# """
+#     $SIGNATURES
+#
+# Return reference to a variable in `::FactorGraph` identified by `::Symbol`.
+# """
+# getVariable(fgl::FactorGraph, lbl::Symbol) = getVert(fgl, lbl, api=api)
 
-Return reference to a variable in `::FactorGraph` identified by `::Symbol`.
-"""
-getVariable(fgl::FactorGraph, lbl::Symbol, api::DataLayerAPI=dlapi) = getVert(fgl, lbl, api=api)
-
-"""
-    $SIGNATURES
-
-Return reference to the user factor in `::FactorGraph` identified by `::Symbol`.
-"""
-getFactor(fvert::Graphs.ExVertex) = getData(fvert).fnc.usrfnc!
-getFactor(fgl::FactorGraph, lbl::Symbol, api::DataLayerAPI=dlapi) = getFactor(getVert(fgl, lbl, api=api, nt=:fct))
+# """
+#     $SIGNATURES
+#
+# Return reference to the user factor in `::FactorGraph` identified by `::Symbol`.
+# """
+# getFactor(fvert::Graphs.ExVertex) = getData(fvert).fnc.usrfnc!
+# getFactor(fgl::FactorGraph, lbl::Symbol, api::DataLayerAPI=dlapi) = getFactor(getVert(fgl, lbl, api=api, nt=:fct))
 
 """
     $SIGNATURES
 
 Display and return to console the user factor identified by tag name.
 """
-showFactor(fgl::FactorGraph, fsym::Symbol; api::DataLayerAPI=dlapi) = @show getFactor(fgl,fsym)
+showFactor(fgl::G, fsym::Symbol) where G <: AbstractDFG = @show getFactor(fgl,fsym)
 
 """
    $SIGNATURES
 
 Display the content of `VariableNodeData` to console for a given factor graph and variable tag`::Symbol`.
 """
-function showVariable(fgl::FactorGraph, vsym::Symbol; api::DataLayerAPI=dlapi)
-  vert = getVert(fg, vsym, api=api)
+function showVariable(fgl::G, vsym::Symbol) where G <: AbstractDFG
+  vert = DFG.getVariable(fg, vsym)
   vnd = getData(vert)
   println("label: $(vert.label), exVertexId: $(vert.index)")
   println("tags: $( haskey(vert.attributes, string(:tags)) ? vert.attributes[string(:tags)] : string(:none))")
@@ -759,20 +582,13 @@ function showVariable(fgl::FactorGraph, vsym::Symbol; api::DataLayerAPI=dlapi)
   vnd
 end
 
-
-function hasFactor(fgl::FactorGraph, sym::Symbol)
-  allf = collect(keys(fgl.fIDs))
-  ret = sym in allf
-  return ret
-end
-
 """
     $SIGNATURES
 
 Return `::Bool` on whether this variable has been marginalized.
 """
-isMarginalized(vert::Graphs.ExVertex) = getData(vert).ismargin
-isMarginalized(fgl::FactorGraph, sym::Symbol; api::DataLayerAPI=localapi) = isMarginalized(getVert(fg, sym, api=api))
+isMarginalized(vert::DFGVariable) = getData(vert).ismargin
+isMarginalized(dfg::G, sym::Symbol; api::DataLayerAPI=localapi) where G <: AbstractDFG = isMarginalized(DFG.getVariable(fg, sym))
 
 
 

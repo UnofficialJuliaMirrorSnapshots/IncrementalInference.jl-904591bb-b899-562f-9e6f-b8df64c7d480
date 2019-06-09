@@ -2,7 +2,7 @@ using IncrementalInference
 
 
 global N=100
-global fg = FactorGraph()
+global fg = initfg()
 global doors = reshape(Float64[-100.0;0.0;100.0;300.0],1,4)
 global pd = kde!(doors,[3.0])
 global pd = resample(pd,N);
@@ -73,16 +73,16 @@ gt[:l1]=reshape(Float64[165.0; 1.17284 ],2,1) # 164.102
 global tree = prepBatchTree!(fg, drawpdf=false);
 
 # list vertices in fg
-@show xx,ll = ls(fg)
+@show xx,ll = IncrementalInference.ls(fg)
 
 # do belief propagation inference over tree once
 # using recursive single core approach (better stack trace for development)
 # inferOverTreeR!(fg, tree)
-inferOverTreeR!(fg, tree, N=N, dbg=true)
+inferOverTree!(fg, tree, N=N, dbg=true, treeinit=true)
 
  #
 # test multi-processor solve (operational fast solving)
-inferOverTree!(fg, tree)
+ inferOverTree!(fg, tree)
 # inferOverTree!(fg, tree, dbg=true)
 
 
