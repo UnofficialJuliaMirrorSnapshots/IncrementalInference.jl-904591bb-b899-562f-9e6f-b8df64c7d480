@@ -85,7 +85,7 @@ end
 
 Get the number of points used for the current marginal belief estimate represtation for a particular variable in the factor graph.
 """
-function getNumPts(v::DFGVariable; solveKey::Symbol=:default)::Tuple{Int64,Int64}
+function getNumPts(v::DFGVariable; solveKey::Symbol=:default)::Int
   return size(getData(v, solveKey=solveKey).val,2)
 end
 
@@ -164,7 +164,7 @@ end
 function setValKDE!(v::DFGVariable, p::BallTreeDensity, setinit::Bool=true, partialinit::Bool=false; solveKey::Symbol=:default)
   pts = getPoints(p)
   setVal!(v, pts, getBW(p)[:,1], solveKey=solveKey) # BUG ...al!(., val, . ) ## TODO -- this can be little faster
-  setinit ? (getData(v, solveKey==solveKey).initialized = true) : nothing
+  setinit ? (getData(v, solveKey=solveKey).initialized = true) : nothing
   getData(v).partialinit = partialinit
   nothing
 end
@@ -482,18 +482,18 @@ end
 Returns state of vertex data `.initialized` flag.
 
 Notes:
-- used by both factor graph variable and Bayes tree clique logic.
-TODO: Refactor
+- used by Bayes tree clique logic.
+- similar method in DFG
 """
 function isInitialized(vert::Graphs.ExVertex)::Bool
   return getData(vert).initialized
 end
-function isInitialized(vert::DFGVariable)::Bool
-  return getData(vert).initialized
-end
-function isInitialized(dfg::T, vsym::Symbol)::Bool where T <: AbstractDFG
-  return isInitialized(DFG.getVariable(dfg, vsym))
-end
+# function isInitialized(vert::DFGVariable)::Bool
+#   return getData(vert).initialized
+# end
+# function isInitialized(dfg::T, vsym::Symbol)::Bool where T <: AbstractDFG
+#   return isInitialized(DFG.getVariable(dfg, vsym))
+# end
 
 """
     $SIGNATURES
@@ -669,17 +669,16 @@ object. Define whether the automatic initialization of variables should be
 performed.  Use order sensitive `multihypo` keyword argument to define if any
 variables are related to data association uncertainty.
 """
-function addFactor!(
-      dfg::G,
-      Xi::Vector{DFGVariable},
-      usrfnc::R;
-      multihypo::Union{Nothing,Tuple,Vector{Float64}}=nothing,
-      ready::Int=1,
-      labels::Vector{Symbol}=Symbol[],
-      autoinit::Bool=true,
-      threadmodel=SingleThreaded  ) where
-        {G <: AbstractDFG,
-         R <: Union{FunctorInferenceType, InferenceType}}
+function addFactor!(dfg::G,
+                    Xi::Vector{DFGVariable},
+                    usrfnc::R;
+                    multihypo::Union{Nothing,Tuple,Vector{Float64}}=nothing,
+                    ready::Int=1,
+                    labels::Vector{Symbol}=Symbol[],
+                    autoinit::Bool=true,
+                    threadmodel=SingleThreaded  ) where
+                      {G <: AbstractDFG,
+                       R <: Union{FunctorInferenceType, InferenceType}}
   #
   namestring = assembleFactorName(dfg, Xi)
   newFactor = DFGFactor{CommonConvWrapper{R}, Symbol}(Symbol(namestring))
