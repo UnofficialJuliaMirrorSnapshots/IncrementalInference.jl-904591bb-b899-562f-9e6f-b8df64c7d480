@@ -41,8 +41,10 @@ import KernelDensityEstimate: getBW
 import ApproxManifoldProducts: kde!
 import DistributedFactorGraphs: addVariable!, addFactor!, ls, lsf, isInitialized, hasOrphans
 
+
 # TODO temporary for initial version of on-manifold products
 KDE.setForceEvalDirect!(true)
+
 
 export
   KDE,
@@ -52,6 +54,7 @@ export
   # DFG SpecialDefinitions
   AbstractDFG,
   hasVariable,
+  getSolverParams,
 
   dlapi,  # data layer variables
   localapi,
@@ -447,12 +450,7 @@ include("CliqStateMachine.jl")
 include("CliqStateMachineUtils.jl")
 include("AdditionalUtils.jl")
 
-
 include("Deprecated.jl")
-
-# Serialization
-include("serialization/models/distributions.jl")
-include("serialization/services/distributions.jl")
 
 exportimg(pl) = error("Please do `using Gadfly` before IncrementalInference is used to allow image export.")
 function __init__()

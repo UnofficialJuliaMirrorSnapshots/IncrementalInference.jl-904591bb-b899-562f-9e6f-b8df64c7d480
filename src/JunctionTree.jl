@@ -299,7 +299,7 @@ Partial reset of basic data fields in `::VariableNodeData` of `::FunctionNode` s
 function resetData!(vdata::VariableNodeData)::Nothing
   vdata.eliminated = false
   vdata.BayesNetOutVertIDs = Symbol[]
-  vdata.BayesNetVertID = :_null # TODO dont use nothing, see DFG issue #16
+  # vdata.BayesNetVertID = :_null # TODO dont use nothing, see DFG issue #16
   vdata.separator = Symbol[]
   nothing
 end
@@ -317,10 +317,10 @@ Wipe data from `dfg` object so that a completely fresh Bayes/Junction/Eliminatio
 can be constructed.
 """
 function resetFactorGraphNewTree!(dfg::G)::Nothing where G <: AbstractDFG
-  for v in DFG.ls(dfg)
+  for v in DFG.getVariables(dfg)
     resetData!(getData(v))
   end
-  for f in DFG.lsf(dfg)
+  for f in DFG.getFactors(dfg)
     resetData!(getData(f))
   end
   nothing
@@ -848,7 +848,6 @@ function compCliqAssocMatrices!(dfg::G, bt::BayesTree, cliq::Graphs.ExVertex) wh
         # TODO int and symbol compare is no good
         for vertidx in getData(DFG.getFactor(dfg, idfct)).fncargvID
         # for vertidx in getData(getVertNode(dfg, idfct)).fncargvID
-          @show vertidx, cols[j], i, j
           if vertidx == cols[j]
             cliqAssocMat[i,j] = true
           end
