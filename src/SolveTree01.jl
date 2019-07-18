@@ -704,10 +704,14 @@ function downGibbsCliqueDensity(fg::G,
                                 dwnMsgs::Array{NBPMessage,1},
                                 N::Int=100,
                                 MCMCIter::Int=3,
-                                dbg::Bool=false  ) where G <: AbstractDFG
+                                dbg::Bool=false,
+                                logger=SimpleLogger(stdout)) where G <: AbstractDFG
   #
   # TODO standardize function call to have similar stride to upGibbsCliqueDensity
-  @info "down"
+  # @info "down"
+  with_logger(logger) do
+    @info "cliq=$(cliq.index), downGibbsCliqueDensity -- going for down fmcmc."
+  end
   mcmcdbg, d = fmcmc!(fg, cliq, dwnMsgs, getFrontals(cliq), N, MCMCIter, dbg)
   m = dwnPrepOutMsg(fg, cliq, dwnMsgs, d)
 
@@ -716,6 +720,10 @@ function downGibbsCliqueDensity(fg::G,
     for (ke, va) in m.p
       outmsglbl[Symbol(fg.g.vertices[ke].label)] = ke
     end
+  end
+
+  with_logger(logger) do
+    @info "cliq=$(cliq.index), downGibbsCliqueDensity -- convert to BallTreeDensities."
   end
 
   # Always keep dwn messages in cliq data
@@ -732,6 +740,9 @@ function downGibbsCliqueDensity(fg::G,
   getData(cliq).downsolved = true
 
   mdbg = !dbg ? DebugCliqMCMC() : DebugCliqMCMC(mcmcdbg, m, outmsglbl, CliqGibbsMC[])
+  with_logger(logger) do
+    @info "cliq=$(cliq.index), downGibbsCliqueDensity -- finished."
+  end
   return DownReturnBPType(m, mdbg, d, dwnkeepmsgs)
 end
 function downGibbsCliqueDensity(fg::G,
@@ -739,8 +750,12 @@ function downGibbsCliqueDensity(fg::G,
                                 dwnMsgs::Dict{Symbol,BallTreeDensity},
                                 N::Int=100,
                                 MCMCIter::Int=3,
-                                dbg::Bool=false  ) where G <: AbstractDFG
+                                dbg::Bool=false,
+                                logger=SimpleLogger(stdout)) where G <: AbstractDFG
   #
+  with_logger(logger) do
+    @info "cliq=$(cliq.index), downGibbsCliqueDensity -- convert BallTreeDensities to NBPMessages."
+  end
   ind = Dict{Symbol, EasyMessage}()
   sflbls = getVariableIds(fg)
   for (lbl, bel) in dwnMsgs
@@ -749,7 +764,10 @@ function downGibbsCliqueDensity(fg::G,
     end
   end
   ndms = NBPMessage[NBPMessage(ind);]
-  downGibbsCliqueDensity(fg, cliq, ndms, N, MCMCIter, dbg)
+  with_logger(logger) do
+    @info "cliq=$(cliq.index), downGibbsCliqueDensity -- call with NBPMessages."
+  end
+  downGibbsCliqueDensity(fg, cliq, ndms, N, MCMCIter, dbg, logger)
 end
 
 """
@@ -1086,9 +1104,12 @@ end
 
 function downGibbsCliqueDensity(inp::ExploreTreeType{T},
                                 N::Int=100,
-                                dbg::Bool=false  ) where {T}
+                                dbg::Bool=false,
+                                logger=SimpleLogger(stdout)  ) where {T}
   #
-  @info "=================== Iter Clique $(inp.cliq.attributes["label"]) ==========================="
+  with_logger(logger) do
+    @info "=================== Iter Clique $(inp.cliq.attributes["label"]) ==========================="
+  end
   mcmciter = inp.prnt != nothing ? 3 : 0
   return downGibbsCliqueDensity(inp.fg, inp.cliq, inp.sendmsgs, N, mcmciter, dbg)
 end
@@ -1611,6 +1632,8 @@ function tryCliqStateMachineSolve!(dfg::G,
       printCliqHistorySummary(fid, history)
       close(fid)
     end
+    flush(logger.stream)
+    close(logger.stream)
     # clst = getCliqStatus(cliq)
     # clst = cliqInitSolveUp!(dfg, treel, cliq, drawtree=drawtree, limititers=limititers )
   catch err
@@ -1625,11 +1648,31 @@ function tryCliqStateMachineSolve!(dfg::G,
     fid = open("/tmp/caesar/logs/cliq$i/csm.txt", "w")
     printCliqHistorySummary(fid, history)
     close(fid)
+    flush(logger.stream)
+    close(logger.stream)
     error(err)
   end
   # if !(clst in [:upsolved; :downsolved; :marginalized])
   #   error("Clique $(cliq.index), initInferTreeUp! -- cliqInitSolveUp! did not arrive at the desired solution statu: $clst")
   # end
+end
+
+"""
+    $SIGNATURES
+
+After solving, clique histories can be inserted back into the tree for later reference.
+This function helps do the required assigment task.
+"""
+function assignTreeHistory!(treel::BayesTree, cliqHistories::Dict)
+  for i in 1:length(treel.cliques)
+    if haskey(cliqHistories, i)
+      hist = cliqHistories[i]
+      for i in 1:length(hist)
+        hist[i][4].logger = SimpleLogger(stdout)
+      end
+      getData(treel.cliques[i]).statehistory=hist
+    end
+  end
 end
 
 """
@@ -1676,11 +1719,12 @@ function asyncTreeInferUp!(dfg::G,
   end # if
 
   # post-hoc store possible state machine history in clique (without recursively saving earlier history inside state history)
-  for i in 1:length(treel.cliques)
-    if haskey(cliqHistories, i)
-      getData(treel.cliques[i]).statehistory=cliqHistories[i]
-    end
-  end
+  assignTreeHistory!(treel, cliqHistories)
+  # for i in 1:length(treel.cliques)
+  #   if haskey(cliqHistories, i)
+  #     getData(treel.cliques[i]).statehistory=cliqHistories[i]
+  #   end
+  # end
 
   return alltasks, cliqHistories
 end
@@ -1728,15 +1772,16 @@ function initInferTreeUp!(dfg::G,
   end # if
 
   # post-hoc store possible state machine history in clique (without recursively saving earlier history inside state history)
-  for i in 1:length(treel.cliques)
-    if haskey(cliqHistories, i)
-      hist = cliqHistories[i]
-      for i in 1:length(hist)
-        hist[i][4].logger = SimpleLogger(stdout)
-      end
-      getData(treel.cliques[i]).statehistory=hist
-    end
-  end
+  assignTreeHistory!(treel, cliqHistories)
+  # for i in 1:length(treel.cliques)
+  #   if haskey(cliqHistories, i)
+  #     hist = cliqHistories[i]
+  #     for i in 1:length(hist)
+  #       hist[i][4].logger = SimpleLogger(stdout)
+  #     end
+  #     getData(treel.cliques[i]).statehistory=hist
+  #   end
+  # end
 
   return alltasks, cliqHistories
 end
