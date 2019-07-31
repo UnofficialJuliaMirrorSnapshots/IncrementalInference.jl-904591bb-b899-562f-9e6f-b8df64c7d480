@@ -51,6 +51,7 @@ mutable struct SolverParams <: DFG.AbstractParams
   async::Bool
   limititers::Int
   N::Int
+  multiproc::Bool
   SolverParams(;dimID::Int=0,
                 registeredModuleFunctions=nothing,
                 reference=nothing,
@@ -65,21 +66,23 @@ mutable struct SolverParams <: DFG.AbstractParams
                 dbg::Bool=false,
                 async::Bool=false,
                 limititers::Int=100,
-                N::Int=100  ) = new(dimID,
-                                   registeredModuleFunctions,
-                                   reference,
-                                   stateless,
-                                   qfl,
-                                   isfixedlag,
-                                   incremental,
-                                   upsolve,
-                                   downsolve,
-                                   drawtree,
-                                   showtree,
-                                   dbg,
-                                   async,
-                                   limititers,
-                                   N  )
+                N::Int=100,
+                multiproc::Bool=true  ) = new(dimID,
+                                              registeredModuleFunctions,
+                                              reference,
+                                              stateless,
+                                              qfl,
+                                              isfixedlag,
+                                              incremental,
+                                              upsolve,
+                                              downsolve,
+                                              drawtree,
+                                              showtree,
+                                              dbg,
+                                              async,
+                                              limititers,
+                                              N,
+                                              multiproc  )
   #
 end
 
@@ -165,6 +168,9 @@ mutable struct FactorMetadata
   FactorMetadata(x1, x2::Union{Vector,Tuple},x3,x4::Symbol,x5::Vector{Symbol};dbg::Bool=false) = new(x1, x2, x3, x4, x5, dbg)
 end
 
+"""
+$(TYPEDEF)
+"""
 struct SingleThreaded
 end
 """
@@ -320,6 +326,7 @@ function addGraphsVert!(fgl::FactorGraph,
             exvert::Graphs.ExVertex;
             labels::Vector{<:AbstractString}=String[])
   #
+  @warn "Deprecated"
   Graphs.add_vertex!(fgl.g, exvert)
 end
 
@@ -346,7 +353,7 @@ getVertNode(fgl::G, lbl::T; nt::Symbol=:var, bigData::Bool=false) where {G <: Ab
 function updateFullVertData!(fgl::G,
                              nv::N;  # nv::Graphs.ExVertex;
                              updateMAPest::Bool=false ) where {G <: AbstractDFG, N <: DFGNode}
-  #
+  @warn "Deprecated"
 
   sym = Symbol(nv.label)
   isvar = isVariable(fgl, sym)
@@ -359,6 +366,7 @@ function updateFullVertData!(fgl::G,
     lvd.val[:,:] = nvd.val[:,:]
     lvd.bw[:] = nvd.bw[:]
     lvd.initialized = nvd.initialized
+    lvd.inferdim = nvd.inferdim
   else
     # assuming nothing to be done
   end
@@ -368,6 +376,7 @@ end
 
 
 function makeAddEdge!(fgl::FactorGraph, v1::Graphs.ExVertex, v2::Graphs.ExVertex; saveedgeID::Bool=true)
+  @warn "Deprecated"
   edge = Graphs.make_edge(fgl.g, v1, v2)
   Graphs.add_edge!(fgl.g, edge)
   if saveedgeID push!(getData(v2).edgeIDs,edge.index) end #.attributes["data"]
@@ -375,13 +384,16 @@ function makeAddEdge!(fgl::FactorGraph, v1::Graphs.ExVertex, v2::Graphs.ExVertex
 end
 
 function graphsOutNeighbors(fgl::FactorGraph, vert::Graphs.ExVertex; ready::Int=1,backendset::Int=1, needdata::Bool=false)
+  @warn "Deprecated"
   Graphs.out_neighbors(vert, fgl.g)
 end
 function graphsOutNeighbors(fgl::FactorGraph, exVertId::Int; ready::Int=1,backendset::Int=1, needdata::Bool=false)
+  @warn "Deprecated"
   graphsOutNeighbors(fgl.g, getVert(fgl,exVertId), ready=ready, backendset=backendset, needdata=needdata)
 end
 
 function graphsGetEdge(fgl::FactorGraph, id::Int)
+  @warn "Deprecated"
   nothing
 end
 

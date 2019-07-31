@@ -67,7 +67,7 @@ end
 Return the manifolds on which variable `sym::Symbol` is defined.
 """
 getManifolds(v::DFGVariable; solveKey::Symbol=:default) = getSofttype(v, solveKey=solveKey).manifolds
-function getManifolds(dfg::T, sym::Symbol; solveKey::Symbol=:default) where {T <: AbstractDFG}
+function getManifolds(dfg::G, sym::Symbol; solveKey::Symbol=:default) where {G <: AbstractDFG}
   return getManifolds(getVariable(dfg, sym), solveKey=solveKey)
 end
 
@@ -147,9 +147,9 @@ Set the point centers and bandwidth parameters of a variable node, also set `isI
 
 Notes
 - `initialized` is used for initial solve of factor graph where variables are not yet initialized.
-- `partialinit` is used to identify if the initialized was only partial.
+- `inferdim` is used to identify if the initialized was only partial.
 """
-function setValKDE!(v::DFGVariable, val::Array{Float64,2}, setinit::Bool=true, partialinit::Bool=false; solveKey::Symbol=:default)::Nothing
+function setValKDE!(v::DFGVariable, val::Array{Float64,2}, setinit::Bool=true, inferdim::Float64=0; solveKey::Symbol=:default)::Nothing
   # recover softtype information
   sty = getSofttype(v, solveKey=solveKey)
   # @show sty.manifolds
@@ -157,52 +157,64 @@ function setValKDE!(v::DFGVariable, val::Array{Float64,2}, setinit::Bool=true, p
   p = AMP.manikde!(val, sty.manifolds)
   setVal!(v,val,getBW(p)[:,1], solveKey=solveKey) # TODO -- this can be little faster
   setinit ? (getData(v, solveKey=solveKey).initialized = true) : nothing
-  getData(v).partialinit = partialinit
+  getData(v).inferdim = inferdim
   nothing
 end
-function setValKDE!(v::DFGVariable, em::EasyMessage, setinit::Bool=true, partialinit::Bool=false; solveKey::Symbol=:default)::Nothing
+function setValKDE!(v::DFGVariable,
+                    em::EasyMessage,
+                    setinit::Bool=true,
+                    inferdim::Union{Float32, Float64, Int32, Int64}=0;
+                    solveKey::Symbol=:default  )::Nothing
+  #
   setVal!(v, em.pts, em.bws, solveKey=solveKey) # getBW(p)[:,1]
   setinit ? (getData(v, solveKey=solveKey).initialized = true) : nothing
-  getData(v).partialinit = partialinit
+  getData(v).inferdim = inferdim
   nothing
 end
-function setValKDE!(v::DFGVariable, p::BallTreeDensity, setinit::Bool=true, partialinit::Bool=false; solveKey::Symbol=:default)
+function setValKDE!(v::DFGVariable,
+                    p::BallTreeDensity,
+                    setinit::Bool=true,
+                    inferdim::Union{Float32, Float64, Int32, Int64}=0;
+                    solveKey::Symbol=:default  )
+  #
   pts = getPoints(p)
   setVal!(v, pts, getBW(p)[:,1], solveKey=solveKey) # BUG ...al!(., val, . ) ## TODO -- this can be little faster
   setinit ? (getData(v, solveKey=solveKey).initialized = true) : nothing
-  getData(v).partialinit = partialinit
+  getData(v).inferdim = inferdim
   nothing
 end
-function setValKDE!(dfg::T, sym::Symbol, p::BallTreeDensity; solveKey::Symbol=:default, setinit::Bool=true) where T <: AbstractDFG
-  setValKDE!(getVert(dfg, sym), p, setinit, solveKey=solveKey)
+function setValKDE!(dfg::T,
+                    sym::Symbol,
+                    p::BallTreeDensity,
+                    setinit::Bool=true,
+                    inferdim::Union{Float32, Float64, Int32, Int64}=0;
+                    solveKey::Symbol=:default  ) where T <: AbstractDFG
+  #
+  setValKDE!(getVert(dfg, sym), p, setinit, inferdim, solveKey=solveKey)
   nothing
 end
+
 # TODO: Confirm this is supposed to be a variable?
-setVal!(v::DFGVariable, em::EasyMessage; solveKey::Symbol=:default) = setValKDE!(v, em, solveKey=solveKey)
-setVal!(v::DFGVariable, p::BallTreeDensity; solveKey::Symbol=:default) = setValKDE!(v, p, solveKey=solveKey)
-
-"""
-    $SIGNATURES
-
-Return the number of dimensions this factor vertex `fc` influences.
-"""
-getFactorDim(fc::DFGFactor)::Int = getData(fc).fnc.zDim
-
-"""
-    $SIGNATURES
-
-Return the number of dimensions this variable vertex `var` contains.
-"""
-getVariableDim(var::DFGVariable)::Int = getData(var).dims
-
+function setVal!(v::DFGVariable, em::EasyMessage; solveKey::Symbol=:default)
+    @warn "setVal! deprecated, use setValKDE! instead"
+    setValKDE!(v, em, solveKey=solveKey)
+end
+function setVal!(v::DFGVariable, p::BallTreeDensity; solveKey::Symbol=:default)
+    @warn "setVal! deprecated, use setValKDE! instead"
+    setValKDE!(v, p, solveKey=solveKey)
+end
 
 """
     $(SIGNATURES)
 
 Construct a BallTreeDensity KDE object from an IIF.EasyMessage object.
+
+Related
+
+manikde!, getKDE, getKDEMax, getKDEMean, EasyMessage
 """
 function kde!(em::EasyMessage)
-  return AMP.manikde!(em.pts,em.bws, em.manifolds)
+  return AMP.manikde!(em.pts, em.bws, em.manifolds)
 end
 
 
@@ -241,12 +253,12 @@ function setDefaultNodeData!(v::DFGVariable,
     #initval, stdev
     setSolverData(v, VariableNodeData(pNpts,
                             gbw2, Symbol[], sp,
-                            dims, false, :_null, Symbol[], softtype, true, false, false, dontmargin))
+                            dims, false, :_null, Symbol[], softtype, true, 0.0, false, dontmargin))
   else
     sp = round.(Int,range(dodims,stop=dodims+dims-1,length=dims))
     setSolverData(v, VariableNodeData(zeros(dims, N),
                             zeros(dims,1), Symbol[], sp,
-                            dims, false, :_null, Symbol[], softtype, false, false, false, dontmargin))
+                            dims, false, :_null, Symbol[], softtype, false, 0.0, false, dontmargin))
   end
   return nothing
 end
@@ -575,12 +587,15 @@ Development Notes:
 function doautoinit!(dfg::T,
                      xi::DFGVariable;
                      singles::Bool=true,
-                     N::Int=100)::Bool where T <: AbstractDFG
+                     N::Int=100,
+                     logger=SimpleLogger(stdout) )::Bool where T <: AbstractDFG
   #
   didinit = false
   # don't initialize a variable more than once
   if !isInitialized(xi)
-    @info "try doautoinit! of $(xi.label)"
+    with_logger(logger) do
+      @info "try doautoinit! of $(xi.label)"
+    end
     # get factors attached to this variable xi
     vsym = xi.label
     neinodes = DFG.getNeighbors(dfg, vsym)
@@ -598,9 +613,11 @@ function doautoinit!(dfg::T,
       # println("Consider all singleton (unary) factors to $vsym...")
       # calculate the predicted belief over $vsym
       if length(useinitfct) > 0
-        @info "do init of $vsym"
-        pts,fulldim = predictbelief(dfg, vsym, useinitfct)
-        setValKDE!(xi, pts, true, !fulldim)
+        with_logger(logger) do
+          @info "do init of $vsym"
+        end
+        pts,inferdim = predictbelief(dfg, vsym, useinitfct)
+        setValKDE!(xi, pts, true, inferdim)
         didinit = true
       end
     end
@@ -611,7 +628,8 @@ end
 function doautoinit!(dfg::T,
                      Xi::Vector{DFGVariable};
                      singles::Bool=true,
-                     N::Int=100)::Bool where T <: AbstractDFG
+                     N::Int=100,
+                     logger=SimpleLogger(stdout) )::Bool where T <: AbstractDFG
   #
   #
   # Mighty inefficient function, since we only need very select fields nearby from a few neighboring nodes
@@ -621,7 +639,7 @@ function doautoinit!(dfg::T,
 
   # loop over all requested variables that must be initialized
   for xi in Xi
-    didinit &= doautoinit!(dfg, xi, singles=singles, N=N)
+    didinit &= doautoinit!(dfg, xi, singles=singles, N=N, logger=logger)
   end
   return didinit
 end
@@ -629,17 +647,19 @@ end
 function doautoinit!(dfg::T,
                      xsyms::Vector{Symbol};
                      singles::Bool=true,
-                     N::Int=100)::Bool where T <: AbstractDFG
+                     N::Int=100,
+                     logger=SimpleLogger(logger)  )::Bool where T <: AbstractDFG
   #
   verts = getVariable.(dfg, xsyms)
-  return doautoinit!(dfg, verts, singles=singles, N=N)
+  return doautoinit!(dfg, verts, singles=singles, N=N, logger=logger)
 end
 function doautoinit!(dfg::T,
                      xsym::Symbol;
                      singles::Bool=true,
-                     N::Int=100)::Bool where T <: AbstractDFG
+                     N::Int=100,
+                     logger=SimpleLogger(stdout)  )::Bool where T <: AbstractDFG
   #
-  return doautoinit!(dfg, [getVariable(dfg, xsym);], singles=singles, N=N)
+  return doautoinit!(dfg, [getVariable(dfg, xsym);], singles=singles, N=N, logger=logger)
 end
 
 """
@@ -852,12 +872,11 @@ end
 function addBayesNetVerts!(dfg::G, elimOrder::Array{Symbol,1}) where G <: AbstractDFG
   for pId in elimOrder
     vert = DFG.getVariable(dfg, pId)
-    # @show vert.label, getData(vert).BayesNetVertID
-    if getData(vert).BayesNetVertID == nothing
-      # fg.bnid+=1
+    if getData(vert).BayesNetVertID == nothing || getData(vert).BayesNetVertID == :_null # Special serialization case of nothing
+      @debug "[AddBayesNetVerts] Assigning $pId.data.BayesNetVertID = $pId"
       getData(vert).BayesNetVertID = pId
     else
-      @warn "addBayesNetVerts -- something is very wrong, should not have a Bayes net vertex"
+      @warn "addBayesNetVerts -- Something is wrong, variable '$pId' should not have an existing Bayes net reference to '$(getData(vert).BayesNetVertID)'"
     end
   end
 end
@@ -885,8 +904,8 @@ function addChainRuleMarginal!(dfg::G, Si::Vector{Symbol}; maxparallel::Int=50) 
   nothing
 end
 
-function rmVarFromMarg(dfg::G, 
-                       fromvert::DFGVariable, 
+function rmVarFromMarg(dfg::G,
+                       fromvert::DFGVariable,
                        gm::Vector{DFGFactor};
                        maxparallel::Int=50 )::Nothing where G <: AbstractDFG
   @info " - Removing $(fromvert.label)"

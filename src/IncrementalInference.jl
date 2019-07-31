@@ -63,7 +63,10 @@ export
   getTreeCliqsSolverHistories,
   assignTreeHistory!,
 
-  # OBSOLETE TODO REMOVE
+  updateCliqSolvableDims!,
+  fetchCliqSolvableDims,
+
+  # OBSOLETE TODO REMOVE #TODO TODO
   dlapi,
   localapi,
   showcurrentdlapi,
@@ -89,6 +92,12 @@ export
   animateStateMachineHistoryByTimeCompound,
   animateCliqStateMachines,
   csmAnimate,
+  lockUpStatus!,
+  unlockUpStatus!,
+  lockDwnStatus!,
+  unlockDwnStatus!,
+  getSiblingsDelayOrder,
+  areSiblingsRemaingNeedDownOnly,
 
   # general types for softtyping of variable nodes
   InferenceVariable,
@@ -97,6 +106,7 @@ export
   SamplableBelief,
   Prior,
   PackedPrior,
+  MsgPrior,
   PartialPrior,
   PackedPartialPrior,
   LinearConditional,
@@ -162,6 +172,14 @@ export
   getFactor,
   getFactorDim,
   getVariableDim,
+  getVariableInferredDim,
+  getVariableInferredDimFraction,
+  getVariablePotentialDims,
+  getVariableSolvableDim,
+  getFactorSolvableDim,
+  getFactorInferFraction,
+  getCliqSiblingsPriorityInitOrder,
+  isCliqFullDim,
   hasFactor,
   getVariable,
   getVert,
@@ -243,6 +261,7 @@ export
   prepBatchTree!,
   wipeBuildNewTree!,
   hasCliq,
+  getCliq,
   whichCliq,
   getTreeAllFrontalSyms,
   getCliqChildMsgsUp,
@@ -260,6 +279,7 @@ export
   CliqStateMachineContainer,
   batchSolve!,
   solveTree!,
+  solveCliq!,
   fifoFreeze!,
   getCurrentWorkspaceFactors,
   getCurrentWorkspaceVariables,
@@ -363,10 +383,12 @@ export
   getFrontals,                     # duplicate
   getCliqSeparatorVarIds,
   getCliqAllVarIds,
+  getCliqVarIdsAll,
   getCliqVars,
   getCliqAllVarSyms,
   getCliqVarIdsPriors,
   getCliqVarSingletons,
+  getCliqAllFactIds,
   areCliqVariablesAllMarginalized,
   setTreeCliquesMarginalized!,
 
@@ -451,7 +473,6 @@ include("FactorGraphTypes.jl")
 include("BeliefTypes.jl")
 include("AliasScalarSampling.jl")
 include("DefaultNodeTypes.jl")
-include("DataLayerAPI.jl")
 include("FactorGraph01.jl")
 include("SubGraphFunctions.jl")
 include("SerializingDistributions.jl")
@@ -464,11 +485,13 @@ include("TreeBasedInitialization.jl")
 include("GraphConstraintTypes.jl")
 include("SolverUtilities.jl")
 include("ExplicitDiscreteMarginalizations.jl")
+include("InferDimensionUtils.jl")
 include("ApproxConv.jl")
 include("SolveTree01.jl")
 include("CliqStateMachine.jl")
 include("CliqStateMachineUtils.jl")
 include("AdditionalUtils.jl")
+include("SolverAPI.jl")
 
 include("Deprecated.jl")
 
