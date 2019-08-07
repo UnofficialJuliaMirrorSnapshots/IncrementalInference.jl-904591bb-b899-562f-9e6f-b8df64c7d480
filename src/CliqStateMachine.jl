@@ -149,7 +149,7 @@ function finishCliqSolveCheck_StateMachine(csmc::CliqStateMachineContainer)
     for varid in getCliqAllVarIds(csmc.cliq)
       sdims[varid] = 0.0
     end
-    updateCliqSolvableDims!(csmc.cliq,sdims)
+    updateCliqSolvableDims!(csmc.cliq, sdims, csmc.logger)
     unlockUpStatus!(csmc.cliq)
 
     # go to 10
@@ -270,7 +270,7 @@ function attemptCliqInitDown_StateMachine(csmc::CliqStateMachineContainer)
   # take atomic lock when waiting for down ward information
   lockUpStatus!(getData(prnt))
 
-  dwinmsgs = prepCliqInitMsgsDown!(csmc.dfg, csmc.tree, prnt, logger=csmc.logger) # csmc.cliqSubFg
+  dwinmsgs = prepCliqInitMsgsDown!(csmc.dfg, csmc.tree, prnt, csmc.cliq, logger=csmc.logger, dbgnew=!haskey(getSolverParams(csmc.dfg).devParams,:dontUseParentFactorsInitDown)) # csmc.cliqSubFg
   dwnkeys = collect(keys(dwinmsgs))
 
 
@@ -283,8 +283,7 @@ function attemptCliqInitDown_StateMachine(csmc::CliqStateMachineContainer)
 
   # DEVidea
   sdims = getCliqVariableMoreInitDims(csmc.cliqSubFg, csmc.cliq)
-  updateCliqSolvableDims!(csmc.cliq, sdims)
-
+  updateCliqSolvableDims!(csmc.cliq, sdims, csmc.logger)
 
 
   infocsm(csmc, "8a, attemptCliqInitD., updated clique solvable dims")
@@ -560,6 +559,8 @@ function buildCliqSubgraph_StateMachine(csmc::CliqStateMachineContainer)
   syms = getCliqAllVarSyms(csmc.dfg, csmc.cliq)
   infocsm(csmc, "2, build subgraph syms=$(syms)")
   csmc.cliqSubFg = buildSubgraphFromLabels(csmc.dfg, syms)
+
+  # go to 4
   return isCliqNull_StateMachine
 end
 
@@ -683,7 +684,8 @@ function cliqInitSolveUpByStateMachine!(dfg::G,
                                         show::Bool=false,
                                         incremental::Bool=true,
                                         limititers::Int=-1,
-                                        downsolve::Bool=false,
+                                        upsolve::Bool=true,
+                                        downsolve::Bool=true,
                                         recordhistory::Bool=false,
                                         delay::Bool=false,
                                         logger::SimpleLogger=SimpleLogger(Base.stdout)) where {G <: AbstractDFG, AL <: AbstractLogger}
@@ -696,7 +698,9 @@ function cliqInitSolveUpByStateMachine!(dfg::G,
 
   csmc = CliqStateMachineContainer(dfg, initfg(), tree, cliq, prnt, children, false, incremental, drawtree, downsolve, delay, getSolverParams(dfg), oldcliqdata, logger)
 
-  statemachine = StateMachine{CliqStateMachineContainer}(next=testCliqCanRecycled_StateMachine)
+  nxt = upsolve ? testCliqCanRecycled_StateMachine : (downsolve ? testCliqCanRecycled_StateMachine : error("must attempt either up or down solve"))
+
+  statemachine = StateMachine{CliqStateMachineContainer}(next=nxt)
   while statemachine(csmc, verbose=true, iterlimit=limititers, recordhistory=recordhistory); end
   statemachine.history
 end

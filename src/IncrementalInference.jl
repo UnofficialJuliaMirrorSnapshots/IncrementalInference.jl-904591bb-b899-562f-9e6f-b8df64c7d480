@@ -92,6 +92,7 @@ export
   animateStateMachineHistoryByTimeCompound,
   animateCliqStateMachines,
   csmAnimate,
+  makeCsmMovie,
   lockUpStatus!,
   unlockUpStatus!,
   lockDwnStatus!,
@@ -163,12 +164,17 @@ export
   factorCanInitFromOtherVars,
   doautoinit!,
   manualinit!,
+  initVariable!,
   asyncTreeInferUp!,
   initInferTreeUp!,
   solveCliqWithStateMachine!,
   resetData!,
   resetTreeCliquesForUpSolve!,
   resetFactorGraphNewTree!,
+  setVariableInitialized!,
+  setVariableInferDim!,
+  resetVariable!,
+  resetCliqSolve!,
   getFactor,
   getFactorDim,
   getVariableDim,
@@ -263,7 +269,10 @@ export
   hasCliq,
   getCliq,
   whichCliq,
+  getCliqDepth,
   getTreeAllFrontalSyms,
+  getTreeCliqUpMsgsAll,
+  stackCliqUpMsgsByVariable,
   getCliqChildMsgsUp,
   getCliqParentMsgDown,
   getCliqDownMsgsAfterDownSolve,
@@ -283,6 +292,10 @@ export
   fifoFreeze!,
   getCurrentWorkspaceFactors,
   getCurrentWorkspaceVariables,
+
+  # temp const types TODO
+  TempBeliefMsg,
+  TempUpMsgPlotting,
 
   #functors need
   getSample,
@@ -409,6 +422,8 @@ export
   loadjld,
   landmarks,
   setCliqDrawColor,
+  fetchCliqTaskHistoryAll!,
+  fetchAssignTaskHistoryAll!,
 
   # Temp placeholder for evaluating string types to real types
   _evalType,

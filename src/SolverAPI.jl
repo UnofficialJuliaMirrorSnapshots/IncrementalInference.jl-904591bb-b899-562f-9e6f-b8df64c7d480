@@ -6,6 +6,19 @@
     $SIGNATURES
 
 Perform inference over the Bayes tree according to `opt::SolverParams`.
+
+Notes
+- Variety of options, including fixed-lag solving -- see `getSolverParams(fg)` for details.
+
+Example
+```julia
+# without [or with] compute recycling
+tree, smt, hist = solveTree!(fg [,tree])
+```
+
+Related
+
+solveCliq!, wipeBuildNewTree!
 """
 function solveTree!(dfgl::G,
                     oldtree::BayesTree=emptyBayesTree();
@@ -30,7 +43,7 @@ function solveTree!(dfgl::G,
 
   @info "Do tree based init-inference on tree"
   if opt.async
-    smtasks, hist = asyncTreeInferUp!(dfgl, tree, oldtree=oldtree, N=opt.N, drawtree=opt.drawtree, recordcliqs=recordcliqs, limititers=opt.limititers, downsolve=opt.downsolve, incremental=opt.incremental, skipcliqids=skipcliqids, delaycliqs=delaycliqs )
+    smtasks = asyncTreeInferUp!(dfgl, tree, oldtree=oldtree, N=opt.N, drawtree=opt.drawtree, recordcliqs=recordcliqs, limititers=opt.limititers, downsolve=opt.downsolve, incremental=opt.incremental, skipcliqids=skipcliqids, delaycliqs=delaycliqs )
   else
     smtasks, hist = initInferTreeUp!(dfgl, tree, oldtree=oldtree, N=opt.N, drawtree=opt.drawtree, recordcliqs=recordcliqs, limititers=opt.limititers, downsolve=opt.downsolve, incremental=opt.incremental, skipcliqids=skipcliqids, delaycliqs=delaycliqs )
   end
@@ -50,12 +63,22 @@ end
     $SIGNATURES
 
 Perform inference over one clique in the Bayes tree according to `opt::SolverParams`.
+
+Example
+```julia
+tree = wipeBuildNewTree!(fg)
+smt, hist = solveCliq!(fg, tree, :x1 [,cliqHistories=hist] )
+```
+
+Related
+
+solveTree!, wipeBuildNewTree!
 """
 function solveCliq!(dfgl::G,
                     tree::BayesTree,
                     cliqid::Symbol;
                     recordcliq::Bool=false,
-                    cliqHistories = Dict{Int,Vector{Tuple{DateTime, Int, Function, CliqStateMachineContainer}}}(),
+                    # cliqHistories = Dict{Int,Vector{Tuple{DateTime, Int, Function, CliqStateMachineContainer}}}(),
                     maxparallel::Int=50  ) where G <: DFG.AbstractDFG
   #
   hist = Vector{Tuple{DateTime, Int, Function, CliqStateMachineContainer}}()
@@ -71,10 +94,12 @@ function solveCliq!(dfgl::G,
   cliqtask = @async tryCliqStateMachineSolve!(dfgl, tree, cliq.index, cliqHistories, drawtree=opt.drawtree, limititers=opt.limititers, downsolve=opt.downsolve,recordcliqs=(recordcliq ? [cliqid] : Symbol[]), incremental=opt.incremental) # N=N
   # end # if
 
-  # post-hoc store possible state machine history in clique (without recursively saving earlier history inside state history)
-  assignTreeHistory!(tree, cliqHistories)
 
-  return cliqtask, cliqHistories
+  # post-hoc store possible state machine history in clique (without recursively saving earlier history inside state history)
+  # assignTreeHistory!(tree, cliqHistories)
+
+  # cliqHistories
+  return cliqtask
 end
 
 
@@ -109,7 +134,7 @@ function inferOverTree!(dfg::G,
 
   @info "Do tree based init-inference on tree"
   if dbg
-    smtasks, ch = asyncTreeInferUp!(dfg, bt, oldtree=oldtree, N=N, drawtree=drawpdf, recordcliqs=recordcliqs, limititers=limititers, downsolve=downsolve, incremental=incremental, skipcliqids=skipcliqids )
+    smtasks = asyncTreeInferUp!(dfg, bt, oldtree=oldtree, N=N, drawtree=drawpdf, recordcliqs=recordcliqs, limititers=limititers, downsolve=downsolve, incremental=incremental, skipcliqids=skipcliqids )
   else
     smtasks, ch = initInferTreeUp!(dfg, bt, oldtree=oldtree, N=N, drawtree=drawpdf, recordcliqs=recordcliqs, limititers=limititers, downsolve=downsolve, incremental=incremental, skipcliqids=skipcliqids )
   end
