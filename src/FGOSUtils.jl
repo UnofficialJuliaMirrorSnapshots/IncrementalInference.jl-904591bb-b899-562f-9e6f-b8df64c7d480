@@ -3,6 +3,11 @@
 # of convert in their namespace
 
 
+
+manikde!(pts::AbstractArray{Float64,2}, vartype::InferenceVariable) = manikde!(pts, getManifolds(vartype))
+manikde!(pts::AbstractArray{Float64,2}, vartype::Type{InferenceVariable}) = manikde!(pts, getManifolds(vartype))
+
+
 function getMeasurements(dfg::G, fsym::Symbol, N::Int=100) where G <: AbstractDFG
   fnc = getFactorFunction(dfg, fsym)
   getSample(fnc, N)
@@ -166,7 +171,7 @@ end
 Return `::Bool` on whether this variable has been marginalized.
 """
 isMarginalized(vert::DFGVariable) = getData(vert).ismargin
-isMarginalized(dfg::G, sym::Symbol) where G <: AbstractDFG = isMarginalized(DFG.getVariable(fg, sym))
+isMarginalized(dfg::G, sym::Symbol) where G <: AbstractDFG = isMarginalized(DFG.getVariable(dfg, sym))
 
 
 
