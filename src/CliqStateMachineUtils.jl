@@ -238,7 +238,10 @@ function solveCliqWithStateMachine!(dfg::G,
     push!(children, ch)
   end
   prnt = getParent(tree, cliq)
-  csmc = isa(prevcsmc, Nothing) ? CliqStateMachineContainer(dfg, initfg(G), tree, cliq, prnt, children, false, true, true, downsolve, false, getSolverParams(dfg)) : prevcsmc
+
+  destType = (G <: InMemoryDFGTypes) ? G : InMemDFGType#GraphsDFG{SolverParams}
+
+  csmc = isa(prevcsmc, Nothing) ? CliqStateMachineContainer(dfg, initfg(destType), tree, cliq, prnt, children, false, true, true, downsolve, false, getSolverParams(dfg)) : prevcsmc
   statemachine = StateMachine{CliqStateMachineContainer}(next=nextfnc)
   while statemachine(csmc, verbose=verbose, iterlimit=iters, recordhistory=recordhistory); end
   statemachine, csmc
@@ -635,6 +638,27 @@ function areSiblingsRemaingNeedDownOnly(tree::BayesTree,
   return true
 end
 
+
+function setVariablePosteriorEstimates!(subfg::G,
+                                        sym::Symbol )::Nothing where G <: AbstractDFG
+  #
+
+  var = getVariable(subfg, sym)
+  bel = getKDE(var)
+  ops = buildHybridManifoldCallbacks(getManifolds(var))
+
+  @show varMax = getKDEMax(bel, addop=ops[1], diffop=ops[2])
+  @show varMean = getKDEMean(bel)
+  # TODO: We need to populate PPE.
+  @show varPpe = deepcopy(varMax) #TODO
+
+  var.estimateDict[:default] = Dict{Symbol, VariableEstimate}(
+    :max => VariableEstimate(:default, :max, varMax),
+    :mean => VariableEstimate(:default, :mean, varMean),
+    :ppe => VariableEstimate(:default, :ppe, varPpe))
+
+  return nothing
+end
 
 """
     $SIGNATURES

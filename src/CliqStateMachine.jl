@@ -112,6 +112,11 @@ function doCliqDownSolve_StateMachine(csmc::CliqStateMachineContainer)
   csmc.dodownsolve = false
   infocsm(csmc, "11, doCliqDownSolve_StateMachine -- finished with downGibbsCliqueDensity, now update csmc")
 
+  # set MAP est
+  for sym in getCliqFrontalVarIds(csmc.cliq)
+    setVariablePosteriorEstimates!(csmc.cliqSubFg, sym)
+  end
+
   # store the cliqSubFg for later debugging
   if opts.dbg
     DFG.saveDFG(csmc.cliqSubFg, joinpath(opts.logpath,"logs/cliq$(csmc.cliq.index)/fg_afterdownsolve"))
@@ -180,7 +185,7 @@ function determineCliqIfDownSolve_StateMachine(csmc::CliqStateMachineContainer)
     if prntst != :downsolved
       infocsm(csmc, "10, determineCliqIfDownSolve_StateMachine, going around again.")
       return determineCliqIfDownSolve_StateMachine
-end
+  	end
   else
     # special case for down solve on root clique.  When using solveCliq! following an up pass.
 
@@ -190,7 +195,16 @@ end
     setDwnMsg!(csmc.cliq, dwnmsgs)
     setCliqStatus!(csmc.cliq, :downsolved)
 	csmc.dodownsolve = false
+
+	# Update estimates and transfer back to the graph
+	frsyms = getCliqFrontalVarIds(csmc.cliq)
+	# Calculate estimates
+	map(sym -> setVariablePosteriorEstimates!(csmc.cliqSubFg, sym), frsyms)
+	# Transfer to parent graph
+	transferUpdateSubGraph!(csmc.dfg, csmc.cliqSubFg, frsyms)
+
     notifyCliqDownInitStatus!(csmc.cliq, :downsolved, logger=csmc.logger)
+
     return IncrementalInference.exitStateMachine
   end
 
@@ -830,7 +844,9 @@ function cliqInitSolveUpByStateMachine!(dfg::G,
   end
   prnt = getParent(tree, cliq)
 
-  csmc = CliqStateMachineContainer(dfg, initfg(G), tree, cliq, prnt, children, false, incremental, drawtree, downsolve, delay, getSolverParams(dfg), oldcliqdata, logger)
+  destType = (G <: InMemoryDFGTypes) ? G : InMemDFGType#GraphsDFG{SolverParams}
+
+  csmc = CliqStateMachineContainer(dfg, initfg(destType), tree, cliq, prnt, children, false, incremental, drawtree, downsolve, delay, getSolverParams(dfg), oldcliqdata, logger)
 
   nxt = upsolve ? testCliqCanRecycled_StateMachine : (downsolve ? testCliqCanRecycled_StateMachine : error("must attempt either up or down solve"))
 

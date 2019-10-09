@@ -55,7 +55,7 @@ getVariableIds
 """
 function buildSubgraphFromLabels(dfg::G,
                                  syms::Vector{Symbol},
-                                 destType::Type{<:AbstractDFG}=GraphsDFG{SolverParams} ) where G <: AbstractDFG
+                                 destType::Type{<:AbstractDFG}=InMemDFGType ) where G <: AbstractDFG
 
   # data structure for cliq sub graph
   if G <: InMemoryDFGTypes
@@ -265,6 +265,8 @@ function transferUpdateSubGraph!(dest::G1,
   #
   with_logger(logger) do
     @info "transferUpdateSubGraph! -- syms=$syms"
+
+    # TODO add with DFG v0.4
     # DFG.updateGraphSolverData!(src, dest, syms)
     for sym in syms
       vari = DFG.getVariable(src, sym)
