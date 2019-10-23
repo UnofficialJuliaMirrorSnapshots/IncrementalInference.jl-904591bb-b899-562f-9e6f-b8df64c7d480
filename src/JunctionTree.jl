@@ -117,10 +117,10 @@ end
 
 Find parent clique Cp that containts the first eliminated variable of Sj as frontal.
 """
-function identifyFirstEliminatedSeparator(dfg::G,
+function identifyFirstEliminatedSeparator(dfg::AbstractDFG,
                                           elimorder::Vector{Symbol},
                                           firvert::DFGVariable,
-                                          Sj=getData(firvert).separator)::DFGVariable where G <: AbstractDFG
+                                          Sj=solverData(firvert).separator)::DFGVariable
   #
   firstelim = 99999999999
   for s in Sj
@@ -149,7 +149,7 @@ Fourie, D.: mmisam, PhD thesis, 2017. [Chpt. 5]
 function newPotential(tree::BayesTree, dfg::G, var::Symbol, elimorder::Array{Symbol,1}) where G <: AbstractDFG
     firvert = DFG.getVariable(dfg,var)
     # no parent
-    if (length(getData(firvert).separator) == 0)
+    if (length(solverData(firvert).separator) == 0)
       # if (length(tree.cliques) == 0)
         # create new root
         addClique!(tree, dfg, var)
@@ -160,7 +160,7 @@ function newPotential(tree::BayesTree, dfg::G, var::Symbol, elimorder::Array{Sym
       # end
     else
       # find parent clique Cp that containts the first eliminated variable of Sj as frontal
-      Sj = getData(firvert).separator
+      Sj = solverData(firvert).separator
       felbl = identifyFirstEliminatedSeparator(dfg, elimorder, firvert, Sj).label
       CpID = tree.frontals[felbl]
       # look to add this conditional to the tree
@@ -256,6 +256,85 @@ end
 """
     $SIGNATURES
 
+Draw the Bayes (junction) tree with LaTeX labels by means of `.dot` and `.tex`
+files.
+
+Notes
+- Uses system install of graphviz.org.
+- Uses external python `dot2tex` tool (`pip install dot2tex`).
+
+Related:
+
+drawTree
+"""
+function generateTexTree(treel::BayesTree;
+                         filepath::String="/tmp/caesar/bt")
+    btc = deepcopy(treel)
+    for (cid, cliq) in btc.cliques
+        label = cliq.attributes["label"]
+
+        # Get frontals and separator, and split into elements.
+        frt, sep = split(label,':')
+        efrt = split(frt,',')
+        esep = split(sep,',')
+
+        # Transform frontals into latex.
+        newfrontals = ""
+        for l in efrt
+            # Split into symbol and subindex (letter and number).
+            parts = split(l, r"[^a-z0-9]+|(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])")
+            if size(parts)[1] == 2
+                newfrontals = string(newfrontals, "\\bm{", parts[1], "}_{", parts[2], "}, ")
+            elseif size(parts)[1] == 3
+                newfrontals = string(newfrontals, "\\bm{", parts[2], "}_{", parts[3], "}, ")
+            end
+        end
+        # Remove the trailing comma.
+        newfrontals = newfrontals[1:end-2]
+
+        # Transform separator into latex.
+        newseparator = ""
+        if length(sep) > 1
+            for l in esep
+                # Split into symbol and subindex.
+                parts = split(l, r"[^a-z0-9]+|(?<=[a-z])(?=[0-9])|(?<=[0-9])(?=[a-z])")
+                if size(parts)[1] == 2
+                    newseparator = string(newseparator, "\\bm{", parts[1], "}_{", parts[2], "}, ")
+                elseif size(parts)[1] == 3
+                    newseparator = string(newseparator, "\\bm{", parts[2], "}_{", parts[3], "}, ")
+                end
+            end
+        end
+        # Remove the trailing comma.
+        newseparator = newseparator[1:end-2]
+        # Create full label and replace the old one.
+        newlabel = string(newfrontals, ":", newseparator)
+        cliq.attributes["label"] = newlabel
+    end
+
+    # Use new labels to produce `.dot` and `.tex` files.
+    fid = IOStream("")
+    try
+        mkpath(filepath)
+        fid = open("$(filepath).dot","w+")
+        write(fid, to_dot(btc.bt))
+        close(fid)
+        # All in one command.
+        run(`dot2tex -tmath --preproc $(filepath).dot -o $(filepath)proc.dot`)
+        run(`dot2tex $(filepath)proc.dot -o $(filepath).tex`)
+    catch ex
+        @warn ex
+        @show stacktrace()
+    finally
+        close(fid)
+    end
+
+    return btc
+end
+
+"""
+    $SIGNATURES
+
 Build Bayes/Junction/Elimination tree from a given variable ordering.
 """
 function buildTreeFromOrdering!(dfg::G,
@@ -294,7 +373,7 @@ Build Bayes/Junction/Elimination tree.
 Notes
 - Default to free qr factorization for variable elimination order.
 """
-function prepBatchTree!(dfg::G;
+function prepBatchTree!(dfg::AbstractDFG;
                         ordering::Symbol=:qr,
                         drawpdf::Bool=false,
                         show::Bool=false,
@@ -302,7 +381,7 @@ function prepBatchTree!(dfg::G;
                         viewerapp::String="evince",
                         imgs::Bool=false,
                         drawbayesnet::Bool=false,
-                        maxparallel::Int=50  ) where G <: AbstractDFG
+                        maxparallel::Int=50  )
   #
   p = getEliminationOrder(dfg, ordering=ordering)
 
@@ -344,12 +423,12 @@ end
 Wipe data from `dfg` object so that a completely fresh Bayes/Junction/Elimination tree
 can be constructed.
 """
-function resetFactorGraphNewTree!(dfg::G)::Nothing where G <: AbstractDFG
+function resetFactorGraphNewTree!(dfg::AbstractDFG)::Nothing
   for v in DFG.getVariables(dfg)
-    resetData!(getData(v))
+    resetData!(solverData(v))
   end
   for f in DFG.getFactors(dfg)
-    resetData!(getData(f))
+    resetData!(solverData(f))
   end
   nothing
 end
@@ -549,7 +628,7 @@ function getFactorsAmongVariablesOnly(dfg::G,
     # now check if those factors have already been added
     for fct in prefcts
       vert = DFG.getFactor(dfg, fct)
-      if !getData(vert).potentialused
+      if !solverData(vert).potentialused
         push!(almostfcts, fct)
       end
     end
@@ -592,13 +671,13 @@ function getCliqFactorsFromFrontals(fgl::G,
     # usefcts = Int[]
     for fctid in ls(fgl, frsym)
         fct = getFactor(fgl, fctid)
-        if !unused || !getData(fct).potentialused
+        if !unused || !solverData(fct).potentialused
             loutn = ls(fgl, fctid)
             # deal with unary factors
             if length(loutn)==1
                 union!(usefcts, Symbol[Symbol(fct.label);])
                 # appendUseFcts!(usefcts, loutn, fct) # , frsym)
-                getData(fct).potentialused = true
+                solverData(fct).potentialused = true
             end
             # deal with n-ary factors
             for sep in loutn
@@ -608,7 +687,7 @@ function getCliqFactorsFromFrontals(fgl::G,
                 insep = sep in allids
                 if !inseparator || insep
                     union!(usefcts, Symbol[Symbol(fct.label);])
-                    getData(fct).potentialused = true
+                    solverData(fct).potentialused = true
                     if !insep
                         @info "cliq=$(cliq.index) adding factor that is no in separator, $sep"
                     end
@@ -628,7 +707,7 @@ Return `::Bool` on whether factor is a partial constraint.
 """
 isPartial(fcf::T) where {T <: FunctorInferenceType} = :partial in fieldnames(T)
 function isPartial(fct::DFGFactor)  #fct::Graphs.ExVertex
-  fcf = getData(fct).fnc.usrfnc!
+  fcf = solverData(fct).fnc.usrfnc!
   isPartial(fcf)
 end
 
@@ -651,7 +730,7 @@ function setCliqPotentials!(dfg::G,
   fcts = map(x->getFactor(dfg, x), fctsyms)
   getData(cliq).partialpotential = map(x->isPartial(x), fcts)
   for fct in fcts
-    getData(fct).potentialused = true
+    solverData(fct).potentialused = true
   end
 
   @info "finding all frontals for down WIP"
@@ -865,18 +944,6 @@ function getCliqDownMsgsAfterDownSolve(subdfg::G, cliq::Graphs.ExVertex)::TempBe
   return container
 end
 
-"""
-    $SIGNATURES
-
-Return array of all variable vertices in a clique.
-"""
-function getCliqVars(subfg::FactorGraph, cliq::Graphs.ExVertex)
-  verts = Graphs.ExVertex[]
-  for vid in getCliqVars(subfg, cliq)
-    push!(verts, getVert(subfg, vid, api=localapi))
-  end
-  return verts
-end
 
 """
     $SIGNATURES
@@ -1007,11 +1074,9 @@ function compCliqAssocMatrices!(dfg::G, bt::BayesTree, cliq::Graphs.ExVertex) wh
     end
     for i in 1:length(potIDs)
       idfct = getData(cliq).potentials[i]
-      # @show i, potIDs[i], idfct
       if idfct == potIDs[i] # sanity check on clique potentials ordering
         # TODO int and symbol compare is no good
-        for vertidx in getData(DFG.getFactor(dfg, idfct)).fncargvID
-        # for vertidx in getData(getVertNode(dfg, idfct)).fncargvID
+        for vertidx in solverData(DFG.getFactor(dfg, idfct)).fncargvID
           if vertidx == cols[j]
             cliqAssocMat[i,j] = true
           end
