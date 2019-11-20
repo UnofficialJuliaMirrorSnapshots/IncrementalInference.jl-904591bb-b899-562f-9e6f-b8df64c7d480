@@ -40,7 +40,7 @@ import Distributions: sample
 import Random: rand, rand!
 import KernelDensityEstimate: getBW
 import ApproxManifoldProducts: kde!, manikde!
-import DistributedFactorGraphs: addVariable!, addFactor!, ls, lsf, isInitialized, hasOrphans
+import DistributedFactorGraphs: addVariable!, addFactor!, ls, lsf, isInitialized, hasOrphans, compare, compareAllSpecial
 
 # missing exports
 import DistributedFactorGraphs: PackedFunctionNodeData, FunctionNodeData
@@ -60,6 +60,7 @@ export
   hasVariable,
   getSolverParams,
 
+  *,
   notifyCSMCondition,
   CSMHistory,
   getTreeCliqsSolverHistories,
@@ -125,6 +126,7 @@ export
   ls,
   lsf,
   getVariableIds,
+  calcVariablePPE,
   sortVarNested,
   hasOrphans,
   drawCopyFG,
@@ -327,6 +329,8 @@ export
   resetVariableAllInitializations!,
   isMarginalized,
   isMultihypo,
+  getMultihypoDistribution,
+  getHypothesesVectors,
   isCliqMarginalizedFromVars,
   isCliqParentNeedDownMsg,
   setCliqAsMarginalized!,
@@ -416,7 +420,6 @@ export
 
   uppA,
   convert,
-  compare,
   extractdistribution,
 
   # factor graph operating system utils (fgos)
@@ -457,17 +460,8 @@ export
   getCliqSiblingsPartialNeeds,
 
   # some utils
-  compareField,
-  compareFields,
-  compareAll,
+  compare,
   compareAllSpecial,
-  compareVariable,
-  compareFactor,
-  compareAllVariables,
-  compareSimilarVariables,
-  compareSubsetFactorGraph,
-  compareSimilarFactors,
-  compareFactorGraphs,
   getIdx,
   showFactor,
   showVariable,
